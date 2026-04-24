@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Job Market Dashboard</title>
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top, #0f0f1a, #050510);
+      color: white;
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+    }
+
+    section {
+      height: 100vh;
+      padding-top: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      scroll-snap-align: start;
+    }
+
+    h1 {
+      color: #00f7ff;
+      text-shadow: 0 0 15px #00f7ff;
+    }
+
+    .chart {
+      width: 90%;
+      height: 70%;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 25px rgba(0,255,255,0.2);
+    }
+
+    .controls {
+      position: fixed;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+
+    select, button {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid #00f7ff;
+      color: #00f7ff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00f7ff;
+    }
+
+    /* 🔥 MAIN TITLE */
+    .main-title {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 36px;
+      font-weight: bold;
+      color: #00f7ff;
+      text-shadow: 
+        0 0 10px #00f7ff,
+        0 0 20px #00f7ff,
+        0 0 40px #00f7ff;
+      z-index: 100;
+      animation: glow 2s infinite;
+    }
+
+    @keyframes glow {
+      0% { text-shadow: 0 0 10px #00f7ff; }
+      50% { text-shadow: 0 0 25px #00f7ff; }
+      100% { text-shadow: 0 0 10px #00f7ff; }
+    }
+
+    /* 🔥 FOOTER */
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+      letter-spacing: 1px;
+      opacity: 0.8;
+    }
+
+    .info-box {
+      position: fixed;
+      bottom: 40px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #00f7ff;
+      padding: 12px;
+      border-radius: 10px;
+      max-width: 300px;
+      display: none;
+    }
+
+    svg {
+      filter: drop-shadow(0 0 10px #00f7ff);
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="controls">
+  <select id="industryFilter">
+    <option value="all">All Industries</option>
+  </select>
+  <button onclick="toggleView()">Toggle View</button>
+  <button onclick="showAverage()">Avg Salary</button>
+</div>
+
+<div class="main-title">AI Job Market Dashboard</div>
+
+<div class="info-box" id="infoBox"></div>
+
+<section>
+  <h1>Salary vs Experience</h1>
+  <div id="chart" class="chart"></div>
+</section>
+
+<section>
+  <h1>Industry Demand</h1>
+  <div id="bar" class="chart"></div>
+</section>
+
+<section>
+  <h1>Top Skills</h1>
+  <div id="skillsChart" class="chart"></div>
+</section>
+
+<div class="footer">by Arsha Imran</div>
+
+<script>
+
+let data = [];
+let isScatter = true;
+
+d3.csv("data.csv").then(raw => {
+
+  data = raw.map(d => ({
+    title: d.job_title,
+    salary: +d.salary_usd,
+    experience: +d.years_experience,
+    industry: d.industry,
+    benefits: +d.benefits_score,
+    skills: d.required_skills
+  }));
+
+  setupDropdown();
+  drawAll(data);
+});
+
+
+function setupDropdown(){
+  let industries = [...new Set(data.map(d => d.industry))];
+  let dd = document.getElementById("industryFilter");
+
+  industries.forEach(i=>{
+    let opt = document.createElement("option");
+    opt.value = i;
+    opt.text = i;
+    dd.appendChild(opt);
+  });
+
+  dd.addEventListener("change", ()=>{
+    let val = dd.value;
+    let filtered = val==="all" ? data : data.filter(d=>d.industry===val);
+    drawAll(filtered);
+  });
+}
+
+
+function drawAll(dataset){
+  drawChart(dataset);
+  drawBar(dataset);
+  drawSkills(dataset);
+}
+
+
+function drawChart(dataset){
+
+  Plotly.newPlot('chart',[{
+    x: dataset.map(d=>d.experience),
+    y: dataset.map(d=>d.salary),
+    mode: isScatter ? 'markers' : 'lines+markers',
+    text: dataset.map(d=>d.title),
+
+    marker:{
+      size: dataset.map(d=>d.benefits*4),
+      color: '#00f7ff'
+    },
+
+    hovertemplate:
+      "<b>%{text}</b><br>Exp: %{x}<br>Salary: $%{y}<extra></extra>"
+  }],{
+    paper_bgcolor:'#0f0f1a',
+    plot_bgcolor:'#0f0f1a',
+    font:{color:'#fff'}
+  });
+
+  document.getElementById('chart')
+    .on('plotly_click', function(d){
+      let p = d.points[0];
+      let box = document.getElementById("infoBox");
+      box.style.display = "block";
+      box.innerHTML = `
+        <b>${p.text}</b><br>
+        Experience: ${p.x} yrs<br>
+        Salary: $${p.y}
+      `;
+    });
+}
+
+
+function drawBar(dataset){
+
+  let counts = {};
+  dataset.forEach(d=>{
+    counts[d.industry]=(counts[d.industry]||0)+1;
+  });
+
+  Plotly.newPlot('bar',[{
+    x:Object.keys(counts),
+    y:Object.values(counts),
+    type:'bar',
+    marker:{color:'#953b56'}
+  }],{
+    paper_bgcolor:'#0f0f1a',
+    plot_bgcolor:'#0f0f1a',
+    font:{color:'#fff'}
+  });
+
+  document.getElementById('bar')
+    .on('plotly_click', function(d){
+      let ind = d.points[0].x;
+      let filtered = dataset.filter(x=>x.industry===ind);
+      drawChart(filtered);
+    });
+}
+
+
+function toggleView(){
+  isScatter = !isScatter;
+  drawAll(data);
+}
+
+
+function showAverage(){
+
+  let grouped={};
+
+  data.forEach(d=>{
+    if(!grouped[d.industry]){
+      grouped[d.industry]={total:0,count:0};
+    }
+    grouped[d.industry].total+=d.salary;
+    grouped[d.industry].count++;
+  });
+
+  let inds = Object.keys(grouped);
+  let avg = inds.map(i=>grouped[i].total/grouped[i].count);
+
+  Plotly.newPlot('chart',[{
+    x:inds,
+    y:avg,
+    type:'bar',
+    marker:{color:'#689b87'}
+  }]);
+}
+
+
+// 🔥 FIXED SKILLS CHART
+function drawSkills(dataset){
+
+  let skillCount = {};
+
+  dataset.forEach(d=>{
+    if(!d.skills) return;
+    d.skills.split(',').forEach(s=>{
+      let skill = s.trim();
+      skillCount[skill] = (skillCount[skill] || 0) + 1;
+    });
+  });
+
+  let top = Object.entries(skillCount)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,10);
+
+  let width = 900;
+  let height = 450;
+  let margin = {top: 40, right: 20, bottom: 100, left: 60};
+
+  let svg = d3.select("#skillsChart")
+    .html("")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  let x = d3.scaleBand()
+    .domain(top.map(d=>d[0]))
+    .range([margin.left, width - margin.right])
+    .padding(0.3);
+
+  let y = d3.scaleLinear()
+    .domain([0, d3.max(top,d=>d[1])])
+    .nice()
+    .range([height - margin.bottom, margin.top]);
+
+  svg.selectAll("rect")
+    .data(top)
+    .enter()
+    .append("rect")
+    .attr("x", d=>x(d[0]))
+    .attr("y", d=>y(d[1]))
+    .attr("width", x.bandwidth())
+    .attr("height", d=>height - margin.bottom - y(d[1]))
+    .attr("fill", "#55957d")
+    .attr("rx", 8);
+
+  svg.selectAll("text.label")
+    .data(top)
+    .enter()
+    .append("text")
+    .attr("x", d=>x(d[0]) + x.bandwidth()/2)
+    .attr("y", d=>y(d[1]) - 5)
+    .attr("text-anchor","middle")
+    .attr("fill","#00f7ff")
+    .text(d=>d[1]);
+
+  svg.append("g")
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform","rotate(-35)")
+    .style("text-anchor","end")
+    .attr("fill","#00f7ff");
+
+  svg.append("g")
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y))
+    .selectAll("text")
+    .attr("fill","#00f7ff");
+
+  svg.selectAll("path,line")
+    .attr("stroke","#00f7ffa6")
+    .attr("opacity",0.6);
+}
+
+</script>
+
+</body>
+</html>
