@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Degrees, Skills & Rejections: The Internship Crisis</title>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Source+Serif+4:wght@300;400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --cream:     #faf6ef;
+      --parchment: #f0e9da;
+      --sand:      #e2d5c0;
+      --brown:     #8c6a3f;
+      --rust:      #b84c20;
+      --olive:     #5a7a3a;
+      --navy:      #1e3252;
+      --ink:       #2a2015;
+      --muted:     #7a6a55;
+      --border:    #d4c4aa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'Source Serif 4', serif;
+      font-weight: 300;
+      line-height: 1.75;
+      overflow-x: hidden;
+    }
+
+    /* progress */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: var(--rust);
+      z-index: 999;
+      transition: width 0.1s linear;
+    }
+
+    /* nav */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 3rem;
+      background: rgba(250, 246, 239, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--rust);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--rust); }
+
+    /* hero */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 10rem 8vw 6rem;
+      position: relative;
+      overflow: hidden;
+      background: var(--parchment);
+    }
+    .hero-bg-lines {
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 59px,
+        var(--sand) 59px,
+        var(--sand) 60px
+      );
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--rust);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+      opacity: 0;
+      animation: rise 0.9s 0.3s ease forwards;
+    }
+    h1.hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3.8rem, 9vw, 8.5rem);
+      font-weight: 700;
+      line-height: 0.92;
+      color: var(--ink);
+      opacity: 0;
+      animation: rise 0.9s 0.55s ease forwards;
+    }
+    h1.hero-title em {
+      color: var(--rust);
+      font-style: italic;
+    }
+    .hero-desc {
+      margin-top: 2rem;
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 580px;
+      opacity: 0;
+      animation: rise 0.9s 0.8s ease forwards;
+    }
+    .hero-counters {
+      display: flex;
+      gap: 3rem;
+      margin-top: 3rem;
+      opacity: 0;
+      animation: rise 0.9s 1s ease forwards;
+    }
+    .counter-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: var(--rust);
+      line-height: 1;
+    }
+    .counter-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 0.3rem;
+    }
+    .scroll-cue {
+      margin-top: 4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      opacity: 0;
+      animation: rise 0.9s 1.25s ease forwards;
+    }
+    .scroll-cue-line {
+      width: 36px;
+      height: 1px;
+      background: var(--brown);
+    }
+
+    /* divider */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ticker */
+    .ticker-wrap {
+      overflow: hidden;
+      background: var(--sand);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 0.55rem 0;
+    }
+    .ticker-inner {
+      display: flex;
+      gap: 5rem;
+      white-space: nowrap;
+      animation: scroll-left 26s linear infinite;
+    }
+    .ticker-inner span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .ticker-inner span b { color: var(--rust); }
+
+    /* sections */
+    section { padding: 7rem 8vw; }
+    section:nth-child(even) { background: var(--parchment); }
+
+    .sec-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--rust);
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      margin-bottom: 0.7rem;
+    }
+    h2.sec-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 4.5vw, 3.6rem);
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--ink);
+      margin-bottom: 1rem;
+    }
+    h2.sec-title em { color: var(--rust); font-style: italic; }
+    .sec-lead {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 600px;
+      margin-bottom: 2.5rem;
+    }
+
+    /* chart card */
+    .chart-card {
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 1.8rem 2rem;
+      margin-top: 1.8rem;
+    }
+    .chart-card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 1.5rem;
+    }
+
+    /* insight box */
+    .insight {
+      border-left: 3px solid var(--olive);
+      background: var(--parchment);
+      padding: 1.2rem 1.6rem;
+      margin: 1.8rem 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--ink);
+      line-height: 1.6;
+    }
+    .insight strong {
+      display: block;
+      font-size: 1.1rem;
+      color: var(--olive);
+      margin-bottom: 0.4rem;
+      font-family: 'Source Serif 4', serif;
+    }
+
+    /* tab buttons */
+    .tab-bar { display: flex; gap: 0.8rem; margin-bottom: 1.2rem; }
+    .tab-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.45rem 1.1rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover, .tab-btn.active {
+      background: var(--rust);
+      border-color: var(--rust);
+      color: var(--cream);
+    }
+
+    /* pull quote */
+    .pull-quote {
+      padding: 6rem 8vw;
+      background: var(--navy);
+      text-align: center;
+    }
+    .pull-quote blockquote {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: clamp(1.6rem, 3.5vw, 3rem);
+      color: var(--parchment);
+      max-width: 860px;
+      margin: 0 auto;
+      line-height: 1.35;
+    }
+    .pull-quote blockquote span { color: #e8a87c; }
+
+    /* verdict */
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.4rem;
+      margin-top: 2.5rem;
+    }
+    .verdict-card {
+      background: var(--parchment);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--rust);
+      padding: 1.8rem;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .verdict-card:nth-child(2) { border-top-color: var(--olive); }
+    .verdict-card:nth-child(3) { border-top-color: var(--brown); }
+    .verdict-card:nth-child(4) { border-top-color: var(--navy); }
+    .verdict-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(44,32,10,0.1);
+    }
+    .verdict-icon { font-size: 1.8rem; margin-bottom: 0.9rem; }
+    .verdict-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      margin-bottom: 0.6rem;
+      color: var(--ink);
+    }
+    .verdict-card p { font-size: 0.85rem; color: var(--muted); }
+
+    /* footer */
+    footer {
+      background: var(--ink);
+      padding: 4rem 8vw;
+      color: var(--muted);
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 3rem;
+    }
+    .footer-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      color: var(--parchment);
+      margin-bottom: 0.7rem;
+    }
+    .footer-col h4 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--rust);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+    .footer-col li {
+      list-style: none;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 2.1;
+    }
+    .footer-bottom {
+      border-top: 1px solid #3a3020;
+      padding-top: 1.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      color: #5a4a35;
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+
+    /* tooltip */
+    #tooltip {
+      position: fixed;
+      background: var(--ink);
+      color: var(--parchment);
+      padding: 0.5rem 0.9rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      line-height: 1.5;
+      pointer-events: none;
+      display: none;
+      z-index: 800;
+      border-left: 2px solid var(--rust);
+      max-width: 200px;
+    }
+
+    /* scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* keyframes */
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes scroll-left {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.2rem; }
+      .nav-links { display: none; }
+      section { padding: 4rem 1.4rem; }
+      #hero { padding: 7rem 1.4rem 4rem; }
+      .hero-counters { flex-wrap: wrap; gap: 1.5rem; }
+      .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+  <div id="tooltip"></div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-brand">Internship Crisis &middot; 2024</div>
+    <div class="nav-links">
+      <a href="#map">Geography</a>
+      <a href="#paradox">Paradox</a>
+      <a href="#mismatch">Skill Gap</a>
+      <a href="#web">Network</a>
+      <a href="#verdict">Verdict</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-bg-lines"></div>
+    <div class="hero-eyebrow">// A Data Story &mdash; 2024</div>
+    <h1 class="hero-title">Degrees,<br>Skills &amp;<br><em>Rejections</em></h1>
+    <p class="hero-desc">57,679 developers. 15,000 job listings. One uncomfortable truth: the entry-level job no longer means what it used to.</p>
+    <div class="hero-counters">
+      <div>
+        <div class="counter-num" id="cnt-humans">0</div>
+        <div class="counter-label">Survey Respondents</div>
+      </div>
+      <div>
+        <div class="counter-num" id="cnt-jobs">0</div>
+        <div class="counter-label">AI Job Listings</div>
+      </div>
+      <div>
+        <div class="counter-num" id="cnt-ratio">0</div>
+        <div class="counter-label">Humans per Job</div>
+      </div>
+    </div>
+    <div class="scroll-cue">
+      <div class="scroll-cue-line"></div>
+      Scroll to explore
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker-inner">
+      <span>Entry Level &middot; <b>0.49 avg years required</b></span>
+      <span>Skills per role &middot; <b>3&ndash;5 tools minimum</b></span>
+      <span>Remote roles &middot; <b>32.8% of listings</b></span>
+      <span>Python demand &middot; <b>4,450 job mentions</b></span>
+      <span>TensorFlow &middot; <b>absent from survey data</b></span>
+      <span>Ratio &middot; <b>3.8 applicants per opening</b></span>
+      <span>Entry Level &middot; <b>0.49 avg years required</b></span>
+      <span>Skills per role &middot; <b>3&ndash;5 tools minimum</b></span>
+      <span>Remote roles &middot; <b>32.8% of listings</b></span>
+      <span>Python demand &middot; <b>4,450 job mentions</b></span>
+      <span>TensorFlow &middot; <b>absent from survey data</b></span>
+      <span>Ratio &middot; <b>3.8 applicants per opening</b></span>
+    </div>
+  </div>
+
+  <!-- SECTION 1: MAP -->
+  <section id="map">
+    <div class="sec-label">01 // Geographic Distribution</div>
+    <h2 class="sec-title">The Internship <em>Desert</em></h2>
+    <p class="sec-lead">Where are the jobs? Before unpacking the paradoxes, we need to understand where these opportunities actually exist &mdash; and who gets to reach them.</p>
+
+    <div class="chart-card reveal">
+      <div class="chart-card-title">// AI Job Postings by Country &mdash; Top 20</div>
+      <svg id="chart-map"></svg>
+    </div>
+
+    <div class="insight reveal">
+      <strong>📍 Geographic Concentration</strong>
+      Jobs span 20+ countries, but the top 5 &mdash; Germany (814), Denmark (778), Canada (769), France (769), Austria (765) &mdash; account for roughly 26% of all listings. Students outside established tech economies face a structural disadvantage before sending a single application.
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SECTION 2: PARADOX -->
+  <section id="paradox">
+    <div class="sec-label">02 // The Experience Paradox</div>
+    <h2 class="sec-title">&ldquo;Entry Level&rdquo; Is a <em>Lie</em></h2>
+    <p class="sec-lead">We filtered every listing tagged <strong>Entry Level (EN)</strong> and asked: how much prior experience do they actually require? The answer is quietly absurd.</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="btn-exp"    onclick="switchTab('exp')">Experience Required</button>
+      <button class="tab-btn"        id="btn-skills" onclick="switchTab('skills')">Skills per Role</button>
+    </div>
+
+    <div class="chart-card reveal" id="card-exp">
+      <div class="chart-card-title">// Years of Experience Required &mdash; &ldquo;Entry Level&rdquo; Roles</div>
+      <svg id="chart-exp"></svg>
+    </div>
+
+    <div class="chart-card reveal" id="card-skills" style="display:none">
+      <div class="chart-card-title">// Number of Skills Required &mdash; &ldquo;Entry Level&rdquo; Roles</div>
+      <svg id="chart-skills"></svg>
+    </div>
+
+    <div class="insight reveal">
+      <strong>⚡ The Paradox Exposed</strong>
+      The average &ldquo;Entry Level&rdquo; posting requires 0.49 years of experience &mdash; and demands between 3 and 5 discrete tools. Median is 4 skills. Some roles list Python, SQL, TensorFlow, Kubernetes, and Git simultaneously. For an internship.
+    </div>
+  </section>
+
+  <!-- PULL QUOTE -->
+  <div class="pull-quote">
+    <blockquote>
+      &ldquo;You need <span>2 years of experience</span> to get the job that gives you experience.&rdquo;
+      <small style="display:block;margin-top:1rem;font-style:normal;font-size:0.4em;color:#8a9ab8">
+        &mdash; A sentiment echoed by graduates worldwide
+      </small>
+    </blockquote>
+  </div>
+
+  <!-- SECTION 3: MISMATCH -->
+  <section id="mismatch">
+    <div class="sec-label">03 // Supply vs. Demand</div>
+    <h2 class="sec-title">Learning the <em>Wrong</em> Things</h2>
+    <p class="sec-lead">We crossed two datasets: what 57k+ developers <strong>actually know</strong> versus what 15k+ AI job listings <strong>actually want</strong>. The result is a curriculum blindspot hiding in plain sight.</p>
+
+    <div class="chart-card reveal">
+      <div class="chart-card-title">// Industry Demand vs. Workforce Knowledge &mdash; Top 15 Skills</div>
+      <div style="display:flex;gap:2rem;margin-bottom:1rem;font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--muted);">
+        <span>
+          <span style="display:inline-block;width:10px;height:10px;background:#b84c20;margin-right:6px;vertical-align:middle;"></span>
+          Industry Demand
+        </span>
+        <span>
+          <span style="display:inline-block;width:10px;height:10px;background:#5a7a3a;margin-right:6px;vertical-align:middle;"></span>
+          Workforce Supply
+        </span>
+      </div>
+      <svg id="chart-mismatch"></svg>
+    </div>
+
+    <div class="insight reveal">
+      <strong>🎯 The Critical Blindspot</strong>
+      TensorFlow, Kubernetes, PyTorch, Linux, GCP, Hadoop, Tableau, Scala &mdash; all heavily demanded by employers, yet not tracked in standard developer education surveys. This is not a hard-work problem. It is a curriculum gap.
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SECTION 4: NETWORK -->
+  <section id="web">
+    <div class="sec-label">04 // The Skill Web</div>
+    <h2 class="sec-title">You Are Not Hired for <em>One Skill</em></h2>
+    <p class="sec-lead">Skills in entry-level AI roles do not appear alone &mdash; they cluster in tight ecosystems. Asking for Python almost always means TensorFlow, Kubernetes, and Git come with it. Drag nodes to explore the connections.</p>
+
+    <div class="chart-card reveal">
+      <div class="chart-card-title">// Skill Co-occurrence Network &mdash; Entry Level AI Roles (drag to explore)</div>
+      <svg id="chart-network"></svg>
+    </div>
+
+    <div class="insight reveal">
+      <strong>🕸️ The Ecosystem Burden</strong>
+      Python is the central hub &mdash; co-appearing with TensorFlow 310 times, Kubernetes 181 times, GCP 179 times, Git 177 times in entry-level roles alone. Hiring is no longer for a skill. It is an audition for an entire technology stack.
+    </div>
+  </section>
+
+  <!-- VERDICT -->
+  <section id="verdict">
+    <div class="sec-label">05 // The Verdict</div>
+    <h2 class="sec-title">A <em>Structural</em> Crisis</h2>
+    <p class="sec-lead">This is not about individual shortcomings. Four systemic failures are embedded into the AI job market itself.</p>
+
+    <div class="verdict-grid">
+      <div class="verdict-card reveal">
+        <div class="verdict-icon">🗺️</div>
+        <h3>Geographic Bias</h3>
+        <p>Opportunities cluster in established economies. Students elsewhere face a structural disadvantage before a single application is written.</p>
+      </div>
+      <div class="verdict-card reveal">
+        <div class="verdict-icon">🚫</div>
+        <h3>The Zero-Year Myth</h3>
+        <p>&ldquo;Entry Level&rdquo; is a misnomer. The market expects prior professional exposure for roles designed for beginners.</p>
+      </div>
+      <div class="verdict-card reveal">
+        <div class="verdict-icon">📚</div>
+        <h3>Curriculum Blindspot</h3>
+        <p>TensorFlow, Kubernetes, PyTorch &mdash; the most demanded AI skills are largely absent from standard academic training paths.</p>
+      </div>
+      <div class="verdict-card reveal">
+        <div class="verdict-icon">🕸️</div>
+        <h3>The Ecosystem Burden</h3>
+        <p>Interns are expected to navigate an entire interconnected tool stack &mdash; not simply demonstrate one language.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">Degrees, Skills &amp; Rejections</div>
+        <p style="font-size:0.82rem;max-width:320px;line-height:1.7">
+          A narrative data visualization examining structural barriers in AI-era entry-level hiring.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Team</h4>
+        <ul>
+          <li>Arsha Imran &mdash; 2023131</li>
+          <li>Arfah Habib &mdash; 2023127</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Datasets</h4>
+        <ul>
+          <li>AI Job Market (Kaggle)</li>
+          <li>Stack Overflow Survey 2024</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Tools</h4>
+        <ul>
+          <li>D3.js v5</li>
+          <li>vis-society.github.io</li>
+          <li>Google Fonts</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 &middot; Data Visualization Project &middot; Submitted May 10, 2026
+    </div>
+  </footer>
+
+  <script>
+
+    // scroll progress bar
+    window.addEventListener("scroll", function() {
+      var scrolled = document.documentElement.scrollTop;
+      var total    = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      document.getElementById("progress-bar").style.width = (scrolled / total * 100) + "%";
+    });
+
+    // animated number counters on page load
+    function animCount(id, target, suffix, duration) {
+      var el    = document.getElementById(id);
+      var start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var progress = Math.min((ts - start) / duration, 1);
+        var val = Math.floor(progress * target);
+        el.textContent = val.toLocaleString() + (suffix || "");
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    window.addEventListener("load", function() {
+      setTimeout(function() {
+        animCount("cnt-humans", 57679, "",    1600);
+        animCount("cnt-jobs",   15000, "",    1400);
+        animCount("cnt-ratio",  3,     ".8x", 1000);
+      }, 1200);
+    });
+
+    // scroll-triggered reveal for sections
+    var revealEls = document.querySelectorAll(".reveal");
+    var revealObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) e.target.classList.add("in");
+      });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function(el) { revealObs.observe(el); });
+
+    // tooltip helpers
+    var tip = document.getElementById("tooltip");
+
+    function showTip(event, html) {
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      tip.style.left = (event.clientX + 14) + "px";
+      tip.style.top  = (event.clientY - 10) + "px";
+    }
+
+    function hideTip() {
+      tip.style.display = "none";
+    }
+
+    document.addEventListener("mousemove", function(e) {
+      if (tip.style.display === "block") {
+        tip.style.left = (e.clientX + 14) + "px";
+        tip.style.top  = (e.clientY - 10) + "px";
+      }
+    });
+
+    // tab switch between experience/skills charts
+    function switchTab(which) {
+      document.getElementById("card-exp").style.display    = (which === "exp")    ? "" : "none";
+      document.getElementById("card-skills").style.display = (which === "skills") ? "" : "none";
+      document.getElementById("btn-exp").classList.toggle("active",    which === "exp");
+      document.getElementById("btn-skills").classList.toggle("active", which === "skills");
+      if (which === "exp")    drawExp();
+      if (which === "skills") drawSkills();
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  DATA
+    // ─────────────────────────────────────────────
+
+    var jobByCountry = [
+      { country: "Germany",        count: 814 },
+      { country: "Denmark",        count: 778 },
+      { country: "Canada",         count: 769 },
+      { country: "France",         count: 769 },
+      { country: "Austria",        count: 765 },
+      { country: "Singapore",      count: 764 },
+      { country: "China",          count: 763 },
+      { country: "India",          count: 754 },
+      { country: "Sweden",         count: 752 },
+      { country: "Israel",         count: 751 },
+      { country: "Ireland",        count: 750 },
+      { country: "Switzerland",    count: 746 },
+      { country: "Finland",        count: 733 },
+      { country: "Japan",          count: 733 },
+      { country: "Australia",      count: 732 },
+      { country: "Netherlands",    count: 731 },
+      { country: "United Kingdom", count: 729 },
+      { country: "United States",  count: 724 },
+      { country: "South Korea",    count: 722 },
+      { country: "Norway",         count: 721 }
+    ];
+
+    var expData = [
+      { label: "0 Years", value: 1890 },
+      { label: "1 Year",  value: 1828 }
+    ];
+
+    var skillCountData = [
+      { label: "3 Skills", value: 1254 },
+      { label: "4 Skills", value: 1206 },
+      { label: "5 Skills", value: 1258 }
+    ];
+
+    var mismatchData = [
+      { skill: "Python",          demand: 4450,  supply: 29727 },
+      { skill: "SQL",             demand: 3407,  supply: 29781 },
+      { skill: "TensorFlow",      demand: 3022,  supply: 0     },
+      { skill: "Kubernetes",      demand: 3009,  supply: 0     },
+      { skill: "Scala",           demand: 2794,  supply: 0     },
+      { skill: "PyTorch",         demand: 2777,  supply: 0     },
+      { skill: "Linux",           demand: 2705,  supply: 0     },
+      { skill: "Git",             demand: 2631,  supply: 0     },
+      { skill: "Java",            demand: 2578,  supply: 17559 },
+      { skill: "GCP",             demand: 2442,  supply: 0     },
+      { skill: "Hadoop",          demand: 2419,  supply: 0     },
+      { skill: "Tableau",         demand: 2341,  supply: 0     },
+      { skill: "R",               demand: 2311,  supply: 0     },
+      { skill: "Computer Vision", demand: 2284,  supply: 0     },
+      { skill: "Data Vis",        demand: 2270,  supply: 0     }
+    ];
+
+    var networkNodes = [
+      "Python", "SQL", "TensorFlow", "Kubernetes", "Scala",
+      "PyTorch", "Linux", "Git", "Java", "GCP", "Hadoop", "Tableau"
+    ].map(function(id) { return { id: id }; });
+
+    var networkEdges = [
+      ["Python",     "TensorFlow",  310], ["PyTorch",    "SQL",         193],
+      ["Kubernetes", "Python",      181], ["GCP",        "Python",      179],
+      ["Git",        "Python",      177], ["Python",     "Scala",       171],
+      ["Linux",      "Python",      170], ["Python",     "SQL",         165],
+      ["Hadoop",     "Python",      158], ["Python",     "Tableau",     156],
+      ["PyTorch",    "TensorFlow",  136], ["Kubernetes", "SQL",         134],
+      ["GCP",        "SQL",         132], ["Java",       "Python",      129],
+      ["Linux",      "SQL",         129], ["Java",       "SQL",         126],
+      ["SQL",        "Scala",       124], ["Kubernetes", "Scala",       124],
+      ["SQL",        "Tableau",     120], ["Kubernetes", "Linux",       117],
+      ["SQL",        "TensorFlow",  116], ["Hadoop",     "SQL",         113],
+      ["GCP",        "Scala",       112], ["Java",       "Scala",       109],
+      ["GCP",        "Linux",       106], ["Kubernetes", "PyTorch",     106],
+      ["GCP",        "Kubernetes",  105], ["Git",        "SQL",         104],
+      ["Kubernetes", "TensorFlow",  104], ["Java",       "PyTorch",     104]
+    ].map(function(d) { return { source: d[0], target: d[1], weight: d[2] }; });
+
+
+    // ─────────────────────────────────────────────
+    //  CHART COLORS
+    // ─────────────────────────────────────────────
+
+    var RUST  = "#b84c20";
+    var OLIVE = "#5a7a3a";
+    var BROWN = "#8c6a3f";
+    var NAVY  = "#1e3252";
+    var SAND  = "#e2d5c0";
+    var INK   = "#2a2015";
+    var MUTED = "#7a6a55";
+
+    var nodeColorScale = d3.scaleOrdinal()
+      .domain(["Python","SQL","TensorFlow","Kubernetes","Scala","PyTorch","Linux","Git","Java","GCP","Hadoop","Tableau"])
+      .range([RUST, NAVY, BROWN, "#c07a30", OLIVE, "#7a3a5a", "#3a6a5a", "#5a3a7a", "#3a5a3a", "#7a5a30", "#305a7a", "#7a6a20"]);
+
+
+    // ─────────────────────────────────────────────
+    //  CHART 1 — Geographic bar chart
+    // ─────────────────────────────────────────────
+
+    function drawMap() {
+      var container = document.getElementById("chart-map").parentElement;
+      var W = container.clientWidth - 40;
+      var H = 340;
+      var margin = { top: 10, right: 20, bottom: 100, left: 52 };
+      var innerW  = W - margin.left - margin.right;
+      var innerH  = H - margin.top  - margin.bottom;
+
+      var svg = d3.select("#chart-map")
+        .attr("width", W)
+        .attr("height", H);
+
+      svg.selectAll("*").remove();
+
+      var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var x = d3.scaleBand()
+        .domain(jobByCountry.map(function(d) { return d.country; }))
+        .range([0, innerW])
+        .padding(0.22);
+
+      var y = d3.scaleLinear()
+        .domain([700, 825])
+        .range([innerH, 0]);
+
+      var colorScale = d3.scaleSequential()
+        .domain([700, 820])
+        .interpolator(d3.interpolate(SAND, RUST));
+
+      // dashed gridlines
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(4).tickSize(-innerW).tickFormat(""))
+        .selectAll("line")
+        .style("stroke", "#d4c4aa")
+        .style("stroke-dasharray", "3,3");
+
+      g.select(".grid .domain").remove();
+
+      // x axis — rotated labels
+      g.append("g")
+        .attr("transform", "translate(0," + innerH + ")")
+        .call(d3.axisBottom(x).tickSize(0))
+        .selectAll("text")
+        .attr("transform", "rotate(-38)")
+        .style("text-anchor", "end")
+        .attr("dy", "0.4em")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      g.select(".domain").style("stroke", "#d4c4aa");
+
+      // y axis
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(4))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      // bars with animated entry
+      g.selectAll(".bar")
+        .data(jobByCountry)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x",      function(d) { return x(d.country); })
+        .attr("width",  x.bandwidth())
+        .attr("y",      innerH)
+        .attr("height", 0)
+        .attr("fill",   function(d) { return colorScale(d.count); })
+        .attr("opacity", 0.88)
+        .on("mouseover", function(d) {
+          showTip(d3.event, "<b>" + d.country + "</b><br>" + d.count + " postings");
+        })
+        .on("mouseout", hideTip)
+        .transition()
+        .duration(700)
+        .delay(function(d, i) { return i * 35; })
+        .attr("y",      function(d) { return y(d.count); })
+        .attr("height", function(d) { return innerH - y(d.count); });
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  CHART 2a — Experience histogram
+    // ─────────────────────────────────────────────
+
+    function drawExp() {
+      var container = document.getElementById("chart-exp").parentElement;
+      var W = container.clientWidth - 40;
+      var H = 300;
+      var margin = { top: 20, right: 30, bottom: 56, left: 60 };
+      var innerW  = W - margin.left - margin.right;
+      var innerH  = H - margin.top  - margin.bottom;
+
+      var svg = d3.select("#chart-exp")
+        .attr("width", W)
+        .attr("height", H);
+
+      svg.selectAll("*").remove();
+
+      var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var x = d3.scaleBand()
+        .domain(expData.map(function(d) { return d.label; }))
+        .range([0, innerW])
+        .padding(0.45);
+
+      var y = d3.scaleLinear()
+        .domain([0, 2100])
+        .range([innerH, 0]);
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(""))
+        .selectAll("line")
+        .style("stroke", "#d4c4aa")
+        .style("stroke-dasharray", "3,3");
+
+      g.select(".domain").remove();
+
+      g.append("g")
+        .attr("transform", "translate(0," + innerH + ")")
+        .call(d3.axisBottom(x).tickSize(0))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "11px");
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      g.selectAll(".bar")
+        .data(expData)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x",      function(d) { return x(d.label); })
+        .attr("width",  x.bandwidth())
+        .attr("y",      innerH)
+        .attr("height", 0)
+        .attr("fill",   RUST)
+        .attr("opacity", 0.85)
+        .on("mouseover", function(d) {
+          showTip(d3.event, "<b>" + d.label + "</b><br>" + d.value.toLocaleString() + " job postings");
+        })
+        .on("mouseout", hideTip)
+        .transition()
+        .duration(650)
+        .delay(function(d, i) { return i * 180; })
+        .attr("y",      function(d) { return y(d.value); })
+        .attr("height", function(d) { return innerH - y(d.value); });
+
+      // value labels above bars
+      g.selectAll(".val-label")
+        .data(expData)
+        .enter()
+        .append("text")
+        .attr("x", function(d) { return x(d.label) + x.bandwidth() / 2; })
+        .attr("y", function(d) { return y(d.value) - 8; })
+        .attr("text-anchor", "middle")
+        .style("fill", RUST)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "13px")
+        .style("font-weight", "600")
+        .text(function(d) { return d.value.toLocaleString(); });
+
+      g.append("text")
+        .attr("x", innerW / 2)
+        .attr("y", innerH + 44)
+        .attr("text-anchor", "middle")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px")
+        .text("Years of Prior Experience Required");
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  CHART 2b — Skill count bars
+    // ─────────────────────────────────────────────
+
+    function drawSkills() {
+      var container = document.getElementById("chart-skills").parentElement;
+      var W = container.clientWidth - 40;
+      var H = 300;
+      var margin = { top: 20, right: 30, bottom: 56, left: 60 };
+      var innerW  = W - margin.left - margin.right;
+      var innerH  = H - margin.top  - margin.bottom;
+
+      var svg = d3.select("#chart-skills")
+        .attr("width", W)
+        .attr("height", H);
+
+      svg.selectAll("*").remove();
+
+      var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var barColors = [OLIVE, BROWN, RUST];
+
+      var x = d3.scaleBand()
+        .domain(skillCountData.map(function(d) { return d.label; }))
+        .range([0, innerW])
+        .padding(0.42);
+
+      var y = d3.scaleLinear()
+        .domain([0, 1400])
+        .range([innerH, 0]);
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(""))
+        .selectAll("line")
+        .style("stroke", "#d4c4aa")
+        .style("stroke-dasharray", "3,3");
+
+      g.select(".domain").remove();
+
+      g.append("g")
+        .attr("transform", "translate(0," + innerH + ")")
+        .call(d3.axisBottom(x).tickSize(0))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "11px");
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      g.selectAll(".bar")
+        .data(skillCountData)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x",      function(d) { return x(d.label); })
+        .attr("width",  x.bandwidth())
+        .attr("y",      innerH)
+        .attr("height", 0)
+        .attr("fill",   function(d, i) { return barColors[i]; })
+        .attr("opacity", 0.85)
+        .on("mouseover", function(d) {
+          showTip(d3.event, "<b>" + d.label + "</b><br>" + d.value.toLocaleString() + " roles");
+        })
+        .on("mouseout", hideTip)
+        .transition()
+        .duration(650)
+        .delay(function(d, i) { return i * 180; })
+        .attr("y",      function(d) { return y(d.value); })
+        .attr("height", function(d) { return innerH - y(d.value); });
+
+      g.selectAll(".val-label")
+        .data(skillCountData)
+        .enter()
+        .append("text")
+        .attr("x", function(d) { return x(d.label) + x.bandwidth() / 2; })
+        .attr("y", function(d) { return y(d.value) - 8; })
+        .attr("text-anchor", "middle")
+        .style("fill", INK)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "13px")
+        .style("font-weight", "600")
+        .text(function(d) { return d.value.toLocaleString(); });
+
+      g.append("text")
+        .attr("x", innerW / 2)
+        .attr("y", innerH + 44)
+        .attr("text-anchor", "middle")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px")
+        .text("Number of Distinct Skills Required");
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  CHART 3 — Grouped supply vs demand bars
+    // ─────────────────────────────────────────────
+
+    function drawMismatch() {
+      var container = document.getElementById("chart-mismatch").parentElement;
+      var W = container.clientWidth - 40;
+      var H = 400;
+      var margin = { top: 10, right: 20, bottom: 120, left: 58 };
+      var innerW  = W - margin.left - margin.right;
+      var innerH  = H - margin.top  - margin.bottom;
+
+      var svg = d3.select("#chart-mismatch")
+        .attr("width", W)
+        .attr("height", H);
+
+      svg.selectAll("*").remove();
+
+      var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var skills = mismatchData.map(function(d) { return d.skill; });
+
+      var x0 = d3.scaleBand()
+        .domain(skills)
+        .range([0, innerW])
+        .padding(0.28);
+
+      var x1 = d3.scaleBand()
+        .domain(["demand", "supply"])
+        .range([0, x0.bandwidth()])
+        .padding(0.06);
+
+      var y = d3.scaleLinear()
+        .domain([0, 32000])
+        .range([innerH, 0]);
+
+      var colorMap = { demand: RUST, supply: OLIVE };
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(""))
+        .selectAll("line")
+        .style("stroke", "#d4c4aa")
+        .style("stroke-dasharray", "3,3");
+
+      g.select(".domain").remove();
+
+      g.append("g")
+        .attr("transform", "translate(0," + innerH + ")")
+        .call(d3.axisBottom(x0).tickSize(0))
+        .selectAll("text")
+        .attr("transform", "rotate(-38)")
+        .style("text-anchor", "end")
+        .attr("dy", "0.3em")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      g.append("g")
+        .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(",.0f")))
+        .selectAll("text")
+        .style("fill", MUTED)
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size", "9px");
+
+      var groups = g.selectAll(".grp")
+        .data(mismatchData)
+        .enter()
+        .append("g")
+        .attr("class", "grp")
+        .attr("transform", function(d) { return "translate(" + x0(d.skill) + ",0)"; });
+
+      // draw demand and supply bars for each skill group
+      ["demand", "supply"].forEach(function(key) {
+        groups.append("rect")
+          .attr("x",      x1(key))
+          .attr("width",  x1.bandwidth())
+          .attr("y",      innerH)
+          .attr("height", 0)
+          .attr("fill",   colorMap[key])
+          .attr("opacity", 0.85)
+          .on("mouseover", function(d) {
+            showTip(d3.event, "<b>" + d.skill + "</b><br>" +
+              (key === "demand" ? "Demand" : "Supply") + ": " + d[key].toLocaleString());
+          })
+          .on("mouseout", hideTip)
+          .transition()
+          .duration(750)
+          .delay(function(d, i) { return i * 28; })
+          .attr("y",      function(d) { return y(d[key]); })
+          .attr("height", function(d) { return innerH - y(d[key]); });
+      });
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  CHART 4 — Force-directed skill network
+    // ─────────────────────────────────────────────
+
+    function drawNetwork() {
+      var container = document.getElementById("chart-network").parentElement;
+      var W = container.clientWidth - 40;
+      var H = 480;
+
+      var svg = d3.select("#chart-network")
+        .attr("width", W)
+        .attr("height", H);
+
+      svg.selectAll("*").remove();
+
+      // compute degree (total weight) for each node to size circles
+      var degreeMap = {};
+      networkNodes.forEach(function(n) { degreeMap[n.id] = 0; });
+      networkEdges.forEach(function(e) {
+        degreeMap[e.source] = (degreeMap[e.source] || 0) + e.weight;
+        degreeMap[e.target] = (degreeMap[e.target] || 0) + e.weight;
+      });
+
+      var maxDeg = d3.max(Object.values(degreeMap));
+      var rScale = d3.scaleLinear().domain([0, maxDeg]).range([12, 36]);
+      var wScale = d3.scaleLinear().domain([100, 320]).range([0.8, 5]);
+
+      // make fresh copies so d3 simulation can mutate them
+      var nodes = networkNodes.map(function(n) { return { id: n.id }; });
+      var links = networkEdges.map(function(e) {
+        return { source: e.source, target: e.target, weight: e.weight };
+      });
+
+      var sim = d3.forceSimulation(nodes)
+        .force("link",    d3.forceLink(links).id(function(d) { return d.id; }).distance(110).strength(0.4))
+        .force("charge",  d3.forceManyBody().strength(-280))
+        .force("center",  d3.forceCenter(W / 2, H / 2))
+        .force("collide", d3.forceCollide().radius(function(d) { return rScale(degreeMap[d.id]) + 6; }));
+
+      var link = svg.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter()
+        .append("line")
+        .attr("stroke",         "#c8b89a")
+        .attr("stroke-width",   function(d) { return wScale(d.weight); })
+        .attr("stroke-opacity", 0.55);
+
+      var node = svg.append("g")
+        .selectAll("g")
+        .data(nodes)
+        .enter()
+        .append("g")
+        .call(
+          d3.drag()
+            .on("start", function(d) {
+              if (!d3.event.active) sim.alphaTarget(0.3).restart();
+              d.fx = d.x;
+              d.fy = d.y;
+            })
+            .on("drag", function(d) {
+              d.fx = d3.event.x;
+              d.fy = d3.event.y;
+            })
+            .on("end", function(d) {
+              if (!d3.event.active) sim.alphaTarget(0);
+              d.fx = null;
+              d.fy = null;
+            })
+        );
+
+      node.append("circle")
+        .attr("r",            function(d) { return rScale(degreeMap[d.id]); })
+        .attr("fill",         function(d) { return nodeColorScale(d.id); })
+        .attr("opacity",      0.88)
+        .attr("stroke",       "#faf6ef")
+        .attr("stroke-width", 1.5)
+        .on("mouseover", function(d) {
+          var conns = links.filter(function(e) {
+            return e.source.id === d.id || e.target.id === d.id;
+          }).length;
+          showTip(d3.event, "<b>" + d.id + "</b><br>" + conns + " connections");
+        })
+        .on("mouseout", hideTip);
+
+      node.append("text")
+        .text(function(d) { return d.id; })
+        .attr("text-anchor",  "middle")
+        .attr("dy",           "0.35em")
+        .style("fill",        "#faf6ef")
+        .style("font-family", "'JetBrains Mono', monospace")
+        .style("font-size",   "8px")
+        .style("font-weight", "600")
+        .style("pointer-events", "none");
+
+      sim.on("tick", function() {
+        link
+          .attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+        node.attr("transform", function(d) {
+          var cx = Math.max(38, Math.min(W - 38, d.x));
+          var cy = Math.max(38, Math.min(H - 38, d.y));
+          return "translate(" + cx + "," + cy + ")";
+        });
+      });
+    }
+
+
+    // ─────────────────────────────────────────────
+    //  INIT
+    // ─────────────────────────────────────────────
+
+    window.addEventListener("load", function() {
+      drawMap();
+      drawExp();
+      drawMismatch();
+      drawNetwork();
+    });
+
+    window.addEventListener("resize", function() {
+      drawMap();
+      drawExp();
+      drawSkills();
+      drawMismatch();
+      drawNetwork();
+    });
+
+  </script>
+</body>
+</html>
